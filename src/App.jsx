@@ -4,6 +4,15 @@ const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 function classNames(...c) { return c.filter(Boolean).join(' ') }
 
+function PriceBadge({ from }) {
+  if (from == null) return null
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold shadow-sm">
+      From ${from.toFixed(2)}
+    </span>
+  )
+}
+
 function ProductCard({ item, onOffer, onBuy }) {
   const lowestPrice = useMemo(() => {
     if (!item?.size_variants?.length) return null
@@ -11,13 +20,14 @@ function ProductCard({ item, onOffer, onBuy }) {
   }, [item])
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition p-4 flex flex-col">
-      <div className="aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
+    <div className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-4 flex flex-col">
+      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
         {item.images?.[0] ? (
-          <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
+          <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <div className="w-full h-full grid place-items-center text-gray-400">No Image</div>
         )}
+        <div className="absolute left-2 top-2"><PriceBadge from={lowestPrice} /></div>
       </div>
       <div className="mt-3">
         <div className="text-xs uppercase tracking-wide text-gray-500">{item.brand}</div>
@@ -26,14 +36,43 @@ function ProductCard({ item, onOffer, onBuy }) {
       </div>
       <div className="mt-3 flex items-center justify-between">
         <div>
-          {lowestPrice != null && (
-            <div className="text-gray-900 font-semibold">From ${lowestPrice.toFixed(2)}</div>
-          )}
           <div className="text-xs text-gray-500">{item.condition?.replaceAll('_',' ')}</div>
         </div>
         <div className="flex gap-2">
           <button onClick={() => onOffer(item)} className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50">Offer</button>
           <button onClick={() => onBuy(item)} className="px-3 py-1.5 text-sm rounded-lg bg-black text-white hover:bg-gray-900">Buy</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FeaturedCard({ item, onBuy }) {
+  const lowestPrice = useMemo(() => {
+    if (!item?.size_variants?.length) return null
+    return Math.min(...item.size_variants.map(sv => sv.price))
+  }, [item])
+  return (
+    <div className="relative bg-white/80 backdrop-blur rounded-2xl p-4 overflow-hidden border border-zinc-200 hover:border-black transition group">
+      <div className="absolute -inset-1 opacity-0 group-hover:opacity-100 transition pointer-events-none" aria-hidden>
+        <div className="h-full w-full bg-[radial-gradient(600px_at_var(--x,50%)_var(--y,50%),rgba(0,0,0,0.08),transparent_60%)]"></div>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-zinc-100">
+          {item.images?.[0] ? (
+            <img src={item.images[0]} alt={item.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          ) : (
+            <div className="h-full w-full grid place-items-center text-zinc-400">No Image</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Featured • {item.brand}</div>
+          <div className="text-base font-semibold text-zinc-900 truncate">{item.title}</div>
+          <div className="text-sm text-zinc-600 truncate">{item.model} • {item.colorway || '—'}</div>
+          <div className="mt-2 flex items-center gap-2">
+            <PriceBadge from={lowestPrice} />
+            <button onClick={() => onBuy(item)} className="text-xs px-2.5 py-1.5 rounded-lg bg-black text-white hover:bg-zinc-900">Buy now</button>
+          </div>
         </div>
       </div>
     </div>
@@ -134,8 +173,31 @@ export default function App() {
     } catch (e) { alert(e.message) }
   }
 
+  const featured = useMemo(() => products.slice(0, 6), [products])
+  const galleryImages = useMemo(() => {
+    const imgs = products.map(p => p.images?.[0]).filter(Boolean)
+    return imgs.length ? imgs : [
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1520975922284-021aaa49f06b?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1200&auto=format&fit=crop'
+    ]
+  }, [products])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white">
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .marquee {
+          display: flex; gap: 1rem; width: max-content; animation: marquee 25s linear infinite;
+        }
+        .marquee:hover { animation-play-state: paused; }
+        .marquee-reverse { animation-direction: reverse; }
+      `}</style>
       {/* Top bar */}
       <header className="sticky top-0 z-20 backdrop-blur bg-white/70 border-b border-zinc-200">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -148,7 +210,7 @@ export default function App() {
           </div>
           <div className="hidden sm:flex items-center gap-2">
             <button onClick={() => setShowCreate(true)} className="px-3 py-2 rounded-lg bg-black text-white hover:bg-zinc-900">Sell / List item</button>
-            <a href="#" className="px-3 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50">Admin</a>
+            <a href="#featured" className="px-3 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50">Featured</a>
           </div>
         </div>
       </header>
@@ -168,6 +230,53 @@ export default function App() {
             <div className="h-64 w-64 rounded-full bg-gradient-to-tr from-fuchsia-500 to-blue-500 blur-3xl" />
           </div>
         </div>
+      </section>
+
+      {/* Gallery: animated fashion strip */}
+      <section className="max-w-7xl mx-auto px-0 md:px-4">
+        <div className="overflow-hidden rounded-none md:rounded-2xl border border-zinc-200 bg-white">
+          <div className="p-4 md:p-6 flex items-center justify-between">
+            <h2 className="text-lg md:text-2xl font-bold">Gallery</h2>
+            <p className="text-xs md:text-sm text-zinc-500">Hover to pause • Curated for fashion instinct</p>
+          </div>
+          <div className="relative">
+            <div className="w-full overflow-hidden">
+              <div className="marquee px-4">
+                {[...galleryImages, ...galleryImages].map((src, i) => (
+                  <div key={`g1-${i}`} className="h-28 md:h-40 w-44 md:w-64 rounded-xl overflow-hidden bg-zinc-100">
+                    <img src={src} alt="gallery" className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="w-full overflow-hidden mt-3">
+              <div className="marquee marquee-reverse px-4">
+                {[...galleryImages.slice().reverse(), ...galleryImages.slice().reverse()].map((src, i) => (
+                  <div key={`g2-${i}`} className="h-28 md:h-40 w-44 md:w-64 rounded-xl overflow-hidden bg-zinc-100">
+                    <img src={src} alt="gallery" className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured products with pricing */}
+      <section id="featured" className="max-w-7xl mx-auto px-4 py-10">
+        <div className="flex items-end justify-between mb-4">
+          <h2 className="text-2xl font-bold tracking-tight">Featured Picks</h2>
+          <a href="#browse" className="text-sm text-zinc-600 hover:text-black">Browse all →</a>
+        </div>
+        {featured.length === 0 ? (
+          <div className="text-zinc-500 text-sm">No featured items yet. Add a listing to populate this section.</div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {featured.map(f => (
+              <FeaturedCard key={f.id || f.slug} item={f} onBuy={quickBuy} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Search/Filters */}
@@ -243,7 +352,7 @@ export default function App() {
         </div>
       )}
 
-      <footer className="border-t border-zinc-200 py-8 text-center text-sm text-zinc-500">
+      <footer className="border-top border-zinc-200 py-8 text-center text-sm text-zinc-500">
         Backend: {API_BASE}
       </footer>
     </div>
